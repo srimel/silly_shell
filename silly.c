@@ -36,12 +36,12 @@ main(int argc, char *argv[])
 		if(!scanf("%m[^\n]%*c",&command_line)) //allocates memory 
 			perror("Error:");
 
-		char * test = strip(command_line); //testing strip functionality
-		if(test)
-			printf("stipped input: %s\n",test);
+		char * stripped = strip(command_line); //testing strip functionality
+		if(stripped)
+			printf("stipped input: %s\n",stripped);
 
-		int size = count_tokens(test);
-		new_argv = parse(test);
+		int size = count_tokens(stripped);
+		new_argv = parse(stripped);
 		if(new_argv) {
 			printf("Arguments:\n");
 			for(int i = 0; i < size; i++) {
@@ -49,7 +49,7 @@ main(int argc, char *argv[])
 			}
 		}
 
-		cond = strcmp("exit",test);  //loop exit condition
+		cond = strcmp("exit",stripped);  //loop exit condition
 
 		//Garbage collection
 		if(new_argv) {
@@ -65,9 +65,9 @@ main(int argc, char *argv[])
 			free(command_line);
 			command_line = NULL;
 		}
-		if(test) {
-			free(test);
-			test = NULL;
+		if(stripped) {
+			free(stripped);
+			stripped = NULL;
 		}
 
 	}while(cond);
@@ -107,24 +107,23 @@ char ** parse(char *input)
 
 //Under best input, tokens will be equal to space due to first argument being
 //a command
-//TODO: account for two or more spaces inbetween words
 int count_tokens(char * input) 
 {
 	if(!input) return 0;
 	int count = 0;
-	for(int i = 0; i < strlen(input); i++) {
-		if(input[i] == ' ') 
+	int i = 0;
+	while(i < strlen(input)) {
+	//for(int i = 0; i < strlen(input); i++) {
+		if(input[i] == ' ') {
 			count++;
+			while(input[i] == ' ')
+				i++;
+		}
+		else
+			i++;
 	}
 	return count + 1;
 
-}
-
-void clearScreen()
-{
-	for(int i = 0; i < SCREEN; i++) {
-		putchar('\n');
-	}
 }
 
 //Strips leading and trailing whitespace from the input array.
@@ -153,4 +152,11 @@ char * strip(char * input)
 			break;
 	}
 	return temp;
+}
+
+void clearScreen()
+{
+	for(int i = 0; i < SCREEN; i++) {
+		putchar('\n');
+	}
 }
