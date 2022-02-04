@@ -22,57 +22,39 @@ void clearScreen();
 char * strip(char * input);
 char ** parse(char *input);
 int count_tokens(char * input);
+void welcome();
+void getCommand(char **new_argv, int *size, int *cond);
+void insertPrompt();
+void printArgs(char ** new_argv, int size);
+void destroyArgs(char **new_argv, int size, char *command_line, char *stripped);
 
 int
 main(int argc, char *argv[])
 {
-	char *command_line = NULL, **new_argv = NULL;
+	char **new_argv = NULL;
 	int cond = 0; 
+	int size = 0;
+	welcome();
 
-	clearScreen();
-	printf("Welcome to Silly Shell!\n\n\n\n");
 	do {
-		 char *usr = getenv("USER"),
-			  *pwd = getenv("PWD");
+		char *command_line = NULL;
+		insertPrompt();
+		if(!scanf("%m[^\n]%*c",&command_line)) {
+			cond = 1;
+			while(getchar() != '\n');
+			continue;
+		}
 
-		printf("%s:%s 8=> ",usr, pwd);
-		if(!scanf("%m[^\n]%*c",&command_line)) //allocates memory 
-			perror("Error:");
-
-		char * stripped = strip(command_line); //testing strip functionality
+		char * stripped = strip(command_line); 
 		if(stripped)
 			printf("stipped input: %s\n",stripped);
 
-		int size = count_tokens(stripped);
+		size = count_tokens(stripped);
 		new_argv = parse(stripped);
-		if(new_argv) {
-			printf("Arguments:\n");
-			for(int i = 0; i < size; i++) {
-				printf("%s\n",new_argv[i]);
-			}
-		}
-
+		printArgs(new_argv,size);
 		cond = strcmp("exit",stripped);  //loop exit condition
 
-		//Garbage collection
-		if(new_argv) {
-			for(int i = 0; i < size; i++) {
-				if(new_argv[i])
-					free(new_argv[i]);
-				new_argv[i] = NULL;
-			}
-			free(new_argv);
-			new_argv = NULL;
-		}
-		if(command_line) {
-			free(command_line);
-			command_line = NULL;
-		}
-		if(stripped) {
-			free(stripped);
-			stripped = NULL;
-		}
-
+		destroyArgs(new_argv, size, command_line, stripped);
 	}while(cond);
 
 	printf("Session terminated...\n");
@@ -81,7 +63,6 @@ main(int argc, char *argv[])
 
 //Parses the input string into separate strings in a 2d array which is returned
 //upon success, otherwise will return a null string. 
-//TODO: supply back the real number of tokens as well.
 //
 char ** parse(char *input)
 {
@@ -161,5 +142,54 @@ void clearScreen()
 {
 	for(int i = 0; i < SCREEN; i++) {
 		putchar('\n');
+	}
+}
+
+void welcome()
+{
+	clearScreen();
+	printf("Welcome to Silly Shell!\n\n\n\n");
+}
+
+void insertPrompt()
+{
+	char *usr = getenv("USER");
+	printf("silly-%s # ",usr);
+}
+
+void getCommand(char **new_argv, int *size, int *cond)
+{
+}
+
+void printArgs(char ** new_argv, int size)
+{
+	if(new_argv) {
+		printf("Arguments:\n");
+		for(int i = 0; i < size; i++) {
+			printf("%s\n",new_argv[i]);
+		}
+	}
+	else
+		printf("No arguments within argv\n");
+}
+
+void destroyArgs(char **new_argv, int size, char *command_line, char *stripped)
+{
+	if(new_argv) {
+		for(int i = 0; i < size; i++) {
+			if(new_argv[i])
+				free(new_argv[i]);
+			new_argv[i] = NULL;
+		}
+		free(new_argv);
+		new_argv = NULL;
+	}
+	if(command_line) {
+		free(command_line);
+		command_line = NULL;
+	}
+	if(stripped) {
+		free(stripped);
+		stripped = NULL;
 	}
 }
