@@ -32,7 +32,10 @@ main(int argc, char *argv[])
 	clearScreen();
 	printf("Welcome to Silly Shell!\n\n\n\n");
 	do {
-		printf(">>> ");
+		 char *usr = getenv("USER"),
+			  *pwd = getenv("PWD");
+
+		printf("%s:%s 8=> ",usr, pwd);
 		if(!scanf("%m[^\n]%*c",&command_line)) //allocates memory 
 			perror("Error:");
 
