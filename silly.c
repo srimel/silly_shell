@@ -31,20 +31,27 @@ void printArgs(char ** new_argv, int size);
 void destroyArgs(char **new_argv, int size, char *stripped, char *command_line);
 void termination_handler(int signum);
 void foreground(char ** new_argv);
+void background(char ** new_argv);
 
 int
 main(int argc, char *argv[])
 {
-	struct sigaction new_action, old_action;
 	char **new_argv = NULL;
 	int cond = 0; 
 	int size = 0;
+
+	struct sigaction new_action, old_action;
+	sigaction (SIGCHLD, NULL, &old_action);
+	if (old_action.sa_handler != SIG_IGN) {
+		sigaction (SIGCHLD, &new_action, NULL);
+	}
 
 	welcome();
 
 	do 
 	{
 		char *command_line = NULL;
+
 		insertPrompt();
 		if(!scanf("%m[^\n]%*c",&command_line)) {
 			cond = 1;
@@ -55,9 +62,18 @@ main(int argc, char *argv[])
 		size = count_tokens(stripped);
 		new_argv = parse(stripped);
 
-		foreground(new_argv);
 
-		cond = strcmp("exit",stripped);  //only loop exit condition
+		//foreground(new_argv);
+		background(new_argv);
+
+		printf("Parent PID %ld\n", (long) getpid());
+		new_action.sa_handler = termination_handler;
+		sigemptyset (&new_action.sa_mask);
+		new_action.sa_flags = 0;
+
+
+		if(stripped)
+			cond = strcmp("exit",stripped);  //only loop exit condition
 		destroyArgs(new_argv, size, stripped, command_line);
 	}while(cond);
 
@@ -90,7 +106,8 @@ void foreground(char ** new_argv)
 		}
 		if (WIFEXITED(status)) {
 			if(WEXITSTATUS(status)) {
-				printf("'%s' command not found...\n",new_argv[0]);
+				if(strcmp(new_argv[0], "exit"))
+					printf("'%s' command not found...\n",new_argv[0]);
 			}
 		} else if (WIFSIGNALED(status)) {
 			printf("killed by signal %d\n", WTERMSIG(status));
@@ -102,37 +119,22 @@ void foreground(char ** new_argv)
 	}
 }
 
-/*
-void background()
+void background(char ** new_argv)
 {
-	pid_t p_pid = fork();
-
-	if(p_pid == -1) 
+	pid_t cpid; 
+	cpid = fork();
+	if(cpid == -1) 
 	{
 		perror("Fork Error:");
 		exit(EXIT_FAILURE);
 	}
-	if(p_pid == 0)   //Child process to run program in foreground
+	if(cpid == 0)   //Child process to run program in background
 	{
-		printf("Child PID %ld\n", (long) getpid());
+		//printf("Child PID %ld\n", (long) getpid());
 		execvp(new_argv[0],new_argv);
 		exit(EXIT_FAILURE);
 	} 
-	
-	printf("Parent PID %ld\n", (long) getpid());
-
-	//reset sig handler
-
-	new_action.sa_handler = termination_handler;
-	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0;
-
-	sigaction (SIGCHLD, NULL, &old_action);
-	if (old_action.sa_handler != SIG_IGN) {
-		sigaction (SIGCHLD, &new_action, NULL);
-	}
 }
-*/
 
 //Parses the input string into separate strings in a 2d array which is returned
 //upon success, otherwise will return a null string. 
@@ -288,29 +290,12 @@ void destroyArgs(char **new_argv, int size, char *stripped, char *command_line)
 void termination_handler(int signum) 
 {
 	int status;
-	pid_t w;
-	printf("Signal being man-handled!\n");
-	w = waitpid(-1,&status,0);
-	if(w == -1) {
-		perror("waitpid");
-		exit(EXIT_FAILURE);
+	pid_t cpid;
+	cpid = waitpid(-1,&status,WNOHANG);
+	if(WIFSIGNALED(status)) {
+		printf("Handler Error\n");
 	}
-	if (WIFEXITED(status)) {
-		printf("exited, status: %d", WEXITSTATUS(status));
-	} else if (WIFSIGNALED(status)) {
-		printf("killed by signal %d\n", WTERMSIG(status));
-	} else if (WIFSTOPPED(status)) {
-		printf("stopped by signal %d\n", WSTOPSIG(status));
-	} else if (WIFCONTINUED(status)) {
-		printf("continued\n");
+	else if (WEXITSTATUS(status)) {
+		printf("Child exited normally\n");
 	}
-		/*
-		waitpid(sig, &status, 0);
-        if(WIFSIGNALED(status)){
-                printf("%s\n", "error");
-        }
-        else if (WEXITSTATUS(status)){
-                printf("%s\n", "Exited normally");
-        }
-		*/
 }
