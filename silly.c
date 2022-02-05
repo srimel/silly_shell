@@ -72,6 +72,7 @@ main(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 			}
 
+
 			cond = strcmp("exit",stripped);  //loop exit condition
 			destroyArgs(new_argv, size, stripped, command_line);
 		}
