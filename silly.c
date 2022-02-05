@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 /*
 			Stuart Rimel, CS333 Homework #3: Silly Shell
@@ -23,10 +24,10 @@ char * strip(char * input);
 char ** parse(char *input);
 int count_tokens(char * input);
 void welcome();
-void getCommand(char **new_argv, int *size, int *cond);
+void getCommand(char **new_argv, int *size, int *cond, char *stipped, char *com);
 void insertPrompt();
 void printArgs(char ** new_argv, int size);
-void destroyArgs(char **new_argv, int size, char *command_line, char *stripped);
+void destroyArgs(char **new_argv, int size, char *stripped, char *command_line);
 
 int
 main(int argc, char *argv[])
@@ -34,6 +35,8 @@ main(int argc, char *argv[])
 	char **new_argv = NULL;
 	int cond = 0; 
 	int size = 0;
+	int status;
+	pid_t cpid, w;
 	welcome();
 
 	do {
@@ -44,17 +47,34 @@ main(int argc, char *argv[])
 			while(getchar() != '\n');
 			continue;
 		}
-
 		char * stripped = strip(command_line); 
-		if(stripped)
-			printf("stipped input: %s\n",stripped);
-
 		size = count_tokens(stripped);
 		new_argv = parse(stripped);
-		printArgs(new_argv,size);
-		cond = strcmp("exit",stripped);  //loop exit condition
+		//printArgs(new_argv,size);
 
-		destroyArgs(new_argv, size, command_line, stripped);
+		//Fork here
+		cpid = fork();
+		if(cpid == -1) {
+			perror("Fork Error:");
+			exit(EXIT_FAILURE);
+		}
+		if(cpid == 0)   //Child process to run program in foreground
+		{
+			printf("Child PID %ld\n", (long) getpid());
+			execvp(new_argv[0],new_argv);
+			exit(EXIT_FAILURE);
+		} 
+		else
+		{
+			w = waitpid(-1,&status,0);
+			if(w == -1) {
+				perror("waitpid");
+				exit(EXIT_FAILURE);
+			}
+
+			cond = strcmp("exit",stripped);  //loop exit condition
+			destroyArgs(new_argv, size, stripped, command_line);
+		}
 	}while(cond);
 
 	printf("Session terminated...\n");
@@ -157,8 +177,25 @@ void insertPrompt()
 	printf("silly-%s # ",usr);
 }
 
-void getCommand(char **new_argv, int *size, int *cond)
+void getCommand(char **new_argv, int *size, int *cond, char *stripped, 
+															char *command_line)
 {
+	insertPrompt();
+	if(!scanf("%m[^\n]%*c",&command_line)) {
+		*cond = 1;
+		while(getchar() != '\n');
+		//continue;
+		return;
+	}
+
+	stripped = strip(command_line); 
+	if(stripped)
+		printf("stipped input: %s\n", stripped);
+
+	*size = count_tokens(stripped);
+	new_argv = parse(stripped);
+	printArgs(new_argv, *size);
+	*cond = strcmp("exit", stripped);  //loop exit condition
 }
 
 void printArgs(char ** new_argv, int size)
@@ -173,7 +210,7 @@ void printArgs(char ** new_argv, int size)
 		printf("No arguments within argv\n");
 }
 
-void destroyArgs(char **new_argv, int size, char *command_line, char *stripped)
+void destroyArgs(char **new_argv, int size, char *stripped, char *command_line)
 {
 	if(new_argv) {
 		for(int i = 0; i < size; i++) {
