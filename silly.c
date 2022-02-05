@@ -52,9 +52,10 @@ main(int argc, char *argv[])
 		new_argv = parse(stripped);
 		//printArgs(new_argv,size);
 
-		//Fork here
+		//Foreground Process: Requires new_argv, status, returns void
 		cpid = fork();
-		if(cpid == -1) {
+		if(cpid == -1) 
+		{
 			perror("Fork Error:");
 			exit(EXIT_FAILURE);
 		}
@@ -66,14 +67,24 @@ main(int argc, char *argv[])
 		} 
 		else
 		{
-			w = waitpid(-1,&status,0);
+			w = waitpid(cpid,&status,0);
 			if(w == -1) {
 				perror("waitpid");
 				exit(EXIT_FAILURE);
 			}
+			if (WIFEXITED(status)) {
+				if(WEXITSTATUS(status)) {
+					printf("'%s' command not found...\n",new_argv[0]);
+				}
+            } else if (WIFSIGNALED(status)) {
+                printf("killed by signal %d\n", WTERMSIG(status));
+            } else if (WIFSTOPPED(status)) {
+                printf("stopped by signal %d\n", WSTOPSIG(status));
+            } else if (WIFCONTINUED(status)) {
+                printf("continued\n");
+            }
 
-
-			cond = strcmp("exit",stripped);  //loop exit condition
+			cond = strcmp("exit",stripped);  //only loop exit condition
 			destroyArgs(new_argv, size, stripped, command_line);
 		}
 	}while(cond);
