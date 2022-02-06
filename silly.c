@@ -21,11 +21,11 @@
 #define BLANK -2   //code value that input was only blank spaces
 
 void clearScreen();
-char * strip(char * input);
+char * strip(char * input, int * bg);
 char ** parse(char *input);
 int count_tokens(char * input);
 void welcome();
-void getCommand(char **new_argv, int *size, int *cond, char *stipped, char *com);
+//void getCommand(char **new_argv, int *size, int *cond, char *stipped, char *com);
 void insertPrompt();
 void printArgs(char ** new_argv, int size);
 void destroyArgs(char **new_argv, int size, char *stripped, char *command_line);
@@ -41,6 +41,11 @@ main(int argc, char *argv[])
 	int size = 0;
 
 	struct sigaction new_action, old_action;
+
+	new_action.sa_handler = termination_handler;
+	sigemptyset (&new_action.sa_mask);
+	new_action.sa_flags = 0; //SA_RESTART;
+
 	sigaction (SIGCHLD, NULL, &old_action);
 	if (old_action.sa_handler != SIG_IGN) {
 		sigaction (SIGCHLD, &new_action, NULL);
@@ -50,30 +55,37 @@ main(int argc, char *argv[])
 
 	do 
 	{
+		int bg = 0;
 		char *command_line = NULL;
 
+		//function
+		//fflush(stdout);
 		insertPrompt();
 		if(!scanf("%m[^\n]%*c",&command_line)) {
 			cond = 1;
 			while(getchar() != '\n');
 			continue;
 		}
-		char * stripped = strip(command_line); 
+
+		//function
+		char * stripped = strip(command_line,&bg); 
 		size = count_tokens(stripped);
 		new_argv = parse(stripped);
 
 
-		//foreground(new_argv);
-		background(new_argv);
+		if(!bg)
+			foreground(new_argv);
+		else
+			background(new_argv);
 
-		printf("Parent PID %ld\n", (long) getpid());
-		new_action.sa_handler = termination_handler;
-		sigemptyset (&new_action.sa_mask);
-		new_action.sa_flags = 0;
-
+		//printf("Parent PID %ld\n", (long) getpid());
+		//new_action.sa_handler = termination_handler;
+		//sigemptyset (&new_action.sa_mask);
+		//new_action.sa_flags = 0;
 
 		if(stripped)
 			cond = strcmp("exit",stripped);  //only loop exit condition
+
 		destroyArgs(new_argv, size, stripped, command_line);
 	}while(cond);
 
@@ -187,7 +199,7 @@ int count_tokens(char * input)
 
 //Strips leading and trailing whitespace from the input array.
 //Also parses the '&' symbol...
-char * strip(char * input)
+char * strip(char * input, int * bg)
 {
 	if(!input) return input;
 
@@ -206,7 +218,9 @@ char * strip(char * input)
 	int length = strlen(temp);
 	for(int i = length-1; i < length; i--)  //strips trailing whitespace
 	{
-		if(temp[i] == ' ')
+		char curr = temp[i];
+		if(curr == '&') *bg = 1;
+		if(curr == ' ' || curr == '&')
 			temp[i] = '\0';
 		else
 			break;
@@ -233,6 +247,7 @@ void insertPrompt()
 	printf("silly-%s # ",usr);
 }
 
+/*j
 void getCommand(char **new_argv, int *size, int *cond, char *stripped, 
 															char *command_line)
 {
@@ -253,6 +268,7 @@ void getCommand(char **new_argv, int *size, int *cond, char *stripped,
 	printArgs(new_argv, *size);
 	*cond = strcmp("exit", stripped);  //loop exit condition
 }
+*/
 
 void printArgs(char ** new_argv, int size)
 {
@@ -290,12 +306,11 @@ void destroyArgs(char **new_argv, int size, char *stripped, char *command_line)
 void termination_handler(int signum) 
 {
 	int status;
-	pid_t cpid;
-	cpid = waitpid(-1,&status,WNOHANG);
-	if(WIFSIGNALED(status)) {
-		printf("Handler Error\n");
-	}
-	else if (WEXITSTATUS(status)) {
-		printf("Child exited normally\n");
+	pid_t w;
+	while((w = waitpid(-1,&status,WNOHANG)) > 0) {
+		if(w == -1) {
+			perror("termination handler error");
+			exit(EXIT_FAILURE);
+		}
 	}
 }
