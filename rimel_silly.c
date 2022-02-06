@@ -67,7 +67,6 @@ main(int argc, char *argv[])
 		else
 			background(new_argv);
 
-
 		//Exits main loop if and only if "exit" is typed.
 		if(stripped)
 			cond = strcmp("exit",stripped);
@@ -110,16 +109,6 @@ void foreground(char ** new_argv)
 					printf("'%s' command not found...\n",new_argv[0]);
 			}
 		} 
-		/*
-		else if (WIFSIGNALED(status)) {
-			printf("process %d terminated\n", w);
-		} 
-		else if (WIFSTOPPED(status)) {
-			printf("stopped by signal %d\n", WSTOPSIG(status));
-		} else if (WIFCONTINUED(status)) {
-			printf("continued\n");
-		}
-		*/
 	}
 }
 
