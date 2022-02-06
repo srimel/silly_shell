@@ -13,8 +13,6 @@
 	that supports execution of simple commands that run in the forground and 
 	background processes. This program will also implement the built-in
 	command "exit" to terminate the shell session. 
-
-	The strip now works I thinks
 */
 
 #define SCREEN 100 //# of lines to clear screen with
@@ -25,7 +23,6 @@ char * strip(char * input, int * bg);
 char ** parse(char *input);
 int count_tokens(char * input);
 void welcome();
-//void getCommand(char **new_argv, int *size, int *cond, char *stipped, char *com);
 void insertPrompt();
 void printArgs(char ** new_argv, int size);
 void destroyArgs(char **new_argv, int size, char *stripped, char *command_line);
@@ -37,15 +34,13 @@ int
 main(int argc, char *argv[])
 {
 	char **new_argv = NULL;
-	int cond = 0; 
-	int size = 0;
-
+	int cond = 0, size = 0;
 	struct sigaction new_action, old_action;
 
+	//Resets how SIGCHLD will be handled via termination_handler()
 	new_action.sa_handler = termination_handler;
 	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0; //SA_RESTART;
-
+	new_action.sa_flags = 0;
 	sigaction (SIGCHLD, NULL, &old_action);
 	if (old_action.sa_handler != SIG_IGN) {
 		sigaction (SIGCHLD, &new_action, NULL);
@@ -57,34 +52,25 @@ main(int argc, char *argv[])
 	{
 		int bg = 0;
 		char *command_line = NULL;
-
-		//function
-		//fflush(stdout);
 		insertPrompt();
-		if(!scanf("%m[^\n]%*c",&command_line)) {
+		if(!scanf("%m[^\n]%*c",&command_line)) { //allocates memory
 			cond = 1;
 			while(getchar() != '\n');
-			continue;
+			continue; //allows '\n' to be entered and handled by shell
 		}
-
-		//function
 		char * stripped = strip(command_line,&bg); 
 		size = count_tokens(stripped);
 		new_argv = parse(stripped);
-
 
 		if(!bg)
 			foreground(new_argv);
 		else
 			background(new_argv);
 
-		//printf("Parent PID %ld\n", (long) getpid());
-		//new_action.sa_handler = termination_handler;
-		//sigemptyset (&new_action.sa_mask);
-		//new_action.sa_flags = 0;
 
+		//Exits main loop if and only if "exit" is typed.
 		if(stripped)
-			cond = strcmp("exit",stripped);  //only loop exit condition
+			cond = strcmp("exit",stripped);
 
 		destroyArgs(new_argv, size, stripped, command_line);
 	}while(cond);
@@ -93,6 +79,9 @@ main(int argc, char *argv[])
 	return 0;
 }
 
+//Forks a child process to run in the foreground. Parent process waits for 
+//child to terminate and reaps child with waitpid(). 
+//
 void foreground(char ** new_argv)
 {
 	int status;
@@ -103,13 +92,12 @@ void foreground(char ** new_argv)
 		perror("Fork Error:");
 		exit(EXIT_FAILURE);
 	}
-	if(cpid == 0)   //Child process to run program in foreground
+	if(cpid == 0) //Child process
 	{
-		//printf("Child PID %ld\n", (long) getpid());
 		execvp(new_argv[0],new_argv);
 		exit(EXIT_FAILURE);
 	} 
-	else
+	else          //Parent process
 	{
 		w = waitpid(cpid,&status,0);
 		if(w == -1) {
@@ -131,6 +119,9 @@ void foreground(char ** new_argv)
 	}
 }
 
+//Forks a child process to run in the background. Child process is reaped
+//via termination handler in the background.
+//
 void background(char ** new_argv)
 {
 	pid_t cpid; 
@@ -140,12 +131,12 @@ void background(char ** new_argv)
 		perror("Fork Error:");
 		exit(EXIT_FAILURE);
 	}
-	if(cpid == 0)   //Child process to run program in background
+	if(cpid == 0)   //Child process
 	{
-		//printf("Child PID %ld\n", (long) getpid());
 		execvp(new_argv[0],new_argv);
 		exit(EXIT_FAILURE);
 	} 
+	//Parent process returns from this function.
 }
 
 //Parses the input string into separate strings in a 2d array which is returned
@@ -178,13 +169,13 @@ char ** parse(char *input)
 
 //Under best input, tokens will be equal to space due to first argument being
 //a command
+//
 int count_tokens(char * input) 
 {
 	if(!input) return 0;
 	int count = 0;
 	int i = 0;
 	while(i < strlen(input)) {
-	//for(int i = 0; i < strlen(input); i++) {
 		if(input[i] == ' ') {
 			count++;
 			while(input[i] == ' ')
@@ -199,6 +190,7 @@ int count_tokens(char * input)
 
 //Strips leading and trailing whitespace from the input array.
 //Also parses the '&' symbol...
+//
 char * strip(char * input, int * bg)
 {
 	if(!input) return input;
@@ -228,60 +220,6 @@ char * strip(char * input, int * bg)
 	return temp;
 }
 
-void clearScreen()
-{
-	for(int i = 0; i < SCREEN; i++) {
-		putchar('\n');
-	}
-}
-
-void welcome()
-{
-	clearScreen();
-	printf("Welcome to Silly Shell!\n\n\n\n");
-}
-
-void insertPrompt()
-{
-	char *usr = getenv("USER");
-	printf("silly-%s # ",usr);
-}
-
-/*j
-void getCommand(char **new_argv, int *size, int *cond, char *stripped, 
-															char *command_line)
-{
-	insertPrompt();
-	if(!scanf("%m[^\n]%*c",&command_line)) {
-		*cond = 1;
-		while(getchar() != '\n');
-		//continue;
-		return;
-	}
-
-	stripped = strip(command_line); 
-	if(stripped)
-		printf("stipped input: %s\n", stripped);
-
-	*size = count_tokens(stripped);
-	new_argv = parse(stripped);
-	printArgs(new_argv, *size);
-	*cond = strcmp("exit", stripped);  //loop exit condition
-}
-*/
-
-void printArgs(char ** new_argv, int size)
-{
-	if(new_argv) {
-		printf("Arguments:\n");
-		for(int i = 0; i < size; i++) {
-			printf("%s\n",new_argv[i]);
-		}
-	}
-	else
-		printf("No arguments within argv\n");
-}
-
 void destroyArgs(char **new_argv, int size, char *stripped, char *command_line)
 {
 	if(new_argv) {
@@ -303,6 +241,8 @@ void destroyArgs(char **new_argv, int size, char *stripped, char *command_line)
 	}
 }
 
+//Reaps all children processes. Used by sigaction() to handle SIGCHLD signal
+//
 void termination_handler(int signum) 
 {
 	int status;
@@ -314,3 +254,35 @@ void termination_handler(int signum)
 		}
 	}
 }
+
+void printArgs(char ** new_argv, int size)
+{
+	if(new_argv) {
+		printf("Arguments:\n");
+		for(int i = 0; i < size; i++) {
+			printf("%s\n",new_argv[i]);
+		}
+	}
+	else
+		printf("No arguments within argv\n");
+}
+
+void insertPrompt()
+{
+	char *usr = getenv("USER");
+	printf("silly-%s # ",usr);
+}
+
+void welcome()
+{
+	clearScreen();
+	printf("Welcome to Silly Shell!\n\n\n\n");
+}
+
+void clearScreen()
+{
+	for(int i = 0; i < SCREEN; i++) {
+		putchar('\n');
+	}
+}
+
