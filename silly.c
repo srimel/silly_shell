@@ -109,13 +109,17 @@ void foreground(char ** new_argv)
 				if(strcmp(new_argv[0], "exit"))
 					printf("'%s' command not found...\n",new_argv[0]);
 			}
-		} else if (WIFSIGNALED(status)) {
-			printf("killed by signal %d\n", WTERMSIG(status));
-		} else if (WIFSTOPPED(status)) {
+		} 
+		/*
+		else if (WIFSIGNALED(status)) {
+			printf("process %d terminated\n", w);
+		} 
+		else if (WIFSTOPPED(status)) {
 			printf("stopped by signal %d\n", WSTOPSIG(status));
 		} else if (WIFCONTINUED(status)) {
 			printf("continued\n");
 		}
+		*/
 	}
 }
 
@@ -167,8 +171,8 @@ char ** parse(char *input)
 	return argv;
 }
 
-//Under best input, tokens will be equal to space due to first argument being
-//a command
+//Counts the number of tokens present in the raw command line string input.
+//Tokens are delimited by ' '.
 //
 int count_tokens(char * input) 
 {
@@ -189,7 +193,7 @@ int count_tokens(char * input)
 }
 
 //Strips leading and trailing whitespace from the input array.
-//Also parses the '&' symbol...
+//Also parses the '&' symbol and will set bg = 1 if found.
 //
 char * strip(char * input, int * bg)
 {
@@ -285,4 +289,3 @@ void clearScreen()
 		putchar('\n');
 	}
 }
-
